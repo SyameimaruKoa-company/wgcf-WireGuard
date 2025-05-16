@@ -90,15 +90,25 @@ jobs:
           asset_content_type: text/plain
 
       - name: Discordに通知を送る
-        uses: actions-go/discord-webhook@v2 # Discord通知用のアクションじゃ
+        uses: tsickert/discord-webhook@v7.0.0 # これで間違いなかろう
         with:
-          webhook_id: ${{ secrets.DISCORD_WEBHOOK_ID }} # Webhook IDをSecretsから取得するのじゃ
-          webhook_token: ${{ secrets.DISCORD_WEBHOOK_TOKEN }} # Webhook TokenもSecretsから取得するのじゃ
-          # または、webhook_url: ${{ secrets.DISCORD_WEBHOOK_URL }} # URL全体を使う場合はこちらじゃ。どちらか一方で良いのじゃ。
-          color: 3066993 # メッセージの色じゃ（これは緑色）
-          description: "WGCFプロファイルの生成とリリースが完了したのじゃ！" # 通知の本文じゃ
-          title: "WGCF Profile Release Complete" # メッセージのタイトルじゃ
-          url: ${{ steps.create_release.outputs.html_url }} # リリースURLを添付するのじゃ
-          footer_text: |
-            端末: ${{ github.event.inputs.terminal_name }} | Run #${{ github.run_number }} # フッターに端末名とRun番号を入れるのじゃ
-          timestamp: true # タイムスタンプを入れるのじゃ
+          # GitHub Marketplaceのドキュメント通り、必須入力は 'webhook-url' じゃ
+          # Secretsに登録したWebhook URL全体を指定するのじゃぞ！
+          # Secretsの名前は、おぬしが登録したものに合わせるのじゃ。
+          webhook-url: ${{ secrets.DISCORD_WEBHOOK_URL }} # ここにWebhook URL全体が入ったSecretを指定
+
+          # メッセージ本文は 'content' という入力名じゃ
+          content: | # 複数行で書くならパイプ記号(|)を使うのが便利じゃ
+            🎉 WGCFプロファイルの生成とリリースが完了したのじゃ！🎉
+
+            **端末名:** ${{ github.event.inputs.terminal_name }}
+            **Run番号:** #${{ github.run_number }}
+
+            **リリースURL:** ${{ steps.create_release.outputs.html_url }}
+
+            おぬし、確認しておくのじゃぞ。
+
+          # その他、ドキュメントに載っているオプションの入力じゃ（必要なら使うと良い）
+          # username: GitHub Actions # 例: 通知時のユーザー名を設定
+          # avatar-url: https://avatars.githubusercontent.com/u/44036562?s=200&v=4 # 例: アバター画像を設定
+          # Embedsなど、もっと凝ったメッセージにしたい場合は、ドキュメントを見て設定するのじゃぞ。
