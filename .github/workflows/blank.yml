@@ -7,7 +7,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     permissions:
-      contents: write # リリースを作成し、ファイルをアップロードするために必要じゃ
+      contents: write
 
     steps:
       - name: Checkout repository
@@ -18,10 +18,12 @@ jobs:
         with:
           go-version: 1.22
 
-      - name: Download and install wgcf
+      - name: Clone and build wgcf
         run: |
-          go install github.com/ViRb3/wgcf@latest
-          go env GOPATH | xargs -I{} sudo ln -s {}/bin/wgcf /usr/local/bin/wgcf
+          git clone https://github.com/ViRb3/wgcf.git
+          cd wgcf
+          go build -o wgcf
+          sudo mv wgcf /usr/local/bin/
 
       - name: Register with WGCF
         run: |
@@ -39,9 +41,9 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: wgcf-profile-${{ github.run_number }} # 識別のために実行番号を使うのじゃ
+          tag_name: wgcf-profile-${{ github.run_number }}
           release_name: WGCF Profile ${{ github.run_number }}
-          draft: true # ここが重要じゃ、ドラフトとして作成するのじゃ
+          draft: true
           prerelease: false
 
       - name: Upload Release Asset
