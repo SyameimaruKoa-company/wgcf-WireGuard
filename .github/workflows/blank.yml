@@ -47,6 +47,11 @@ jobs:
           sed -i 's/2606:4700:4700::1111/2a10:50c0::ad1:ff/g' wgcf-profile-adguard.conf
           sed -i 's/2606:4700:4700::1001/2a10:50c0::ad2:ff/g' wgcf-profile-adguard.conf
 
+      - name: タグの端末名をサニタイズする
+        run: |
+          SANITIZED_NAME=$(echo "${{ github.event.inputs.terminal_name }}" | sed 's/[[:space:]]/-/g')
+          echo "SANITIZED_TERMINAL_NAME=$SANITIZED_NAME" >> $GITHUB_ENV
+
       - name: リリースを作成
         id: create_release
         uses: actions/create-release@v1
@@ -83,3 +88,17 @@ jobs:
           asset_path: ./wgcf-profile-adguard.conf
           asset_name: wgcf-profile-adguard-${{ github.event.inputs.terminal_name }}.conf # 端末名とDNSサービス名を含めるのじゃ
           asset_content_type: text/plain
+
+      - name: Discordに通知を送る
+        uses: actions-go/discord-webhook@v2 # Discord通知用のアクションじゃ
+        with:
+          webhook_id: ${{ secrets.DISCORD_WEBHOOK_ID }} # Webhook IDをSecretsから取得するのじゃ
+          webhook_token: ${{ secrets.DISCORD_WEBHOOK_TOKEN }} # Webhook TokenもSecretsから取得するのじゃ
+          # または、webhook_url: ${{ secrets.DISCORD_WEBHOOK_URL }} # URL全体を使う場合はこちらじゃ。どちらか一方で良いのじゃ。
+          color: 3066993 # メッセージの色じゃ（これは緑色）
+          description: "WGCFプロファイルの生成とリリースが完了したのじゃ！" # 通知の本文じゃ
+          title: "WGCF Profile Release Complete" # メッセージのタイトルじゃ
+          url: ${{ steps.create_release.outputs.html_url }} # リリースURLを添付するのじゃ
+          footer_text: |
+            端末: ${{ github.event.inputs.terminal_name }} | Run #${{ github.run_number }} # フッターに端末名とRun番号を入れるのじゃ
+          timestamp: true # タイムスタンプを入れるのじゃ
