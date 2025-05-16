@@ -25,9 +25,9 @@ jobs:
           go build -o wgcf
           sudo mv wgcf /usr/local/bin/
 
-      - name: Register with WGCF
+      - name: Register with WGCF (non-interactive)
         run: |
-          wgcf register
+          yes | wgcf register
         env:
           WGCF_LICENSE_KEY: ${{ secrets.WGCF_LICENSE_KEY }} # 必要であればライセンスキーをSecretsに設定
 
