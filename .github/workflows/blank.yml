@@ -4,8 +4,11 @@ on:
   workflow_dispatch:
     inputs:
       terminal_name:
-        description: "識別用の名前を入力"
-        required: true
+        description: "識別用の名前を入力 (リリース名/タグ用)"
+        required: true # これは必須じゃ
+      asset_name_suffix:
+        description: "ファイル名を入力 (空欄OK)"
+        required: false # これは必須ではないじゃ
 
 jobs:
   build:
@@ -56,18 +59,25 @@ jobs:
         id: get_date
         run: echo "CURRENT_DATE=$(date +'%Y%m%d')" >> $GITHUB_ENV #MMDD形式で日付を取得し、環境変数に設定するのじゃ
 
-      - name: タグの端末名をサニタイズする
+      - name: タグとリリース名用に端末名をサニタイズする
         run: |
           SANITIZED_NAME=$(echo "${{ github.event.inputs.terminal_name }}" | sed 's/[[:space:]]/-/g')
           echo "SANITIZED_TERMINAL_NAME=$SANITIZED_NAME" >> $GITHUB_ENV
 
-      - name: アセット名用に端末名を切り詰める
+      # ★ アセットファイル名用の接尾辞を決定するステップを追加じゃ ★
+      - name: Determine Asset Name Suffix
         run: |
-          # サニタイズされた名前を最初の20文字に切り詰めるのじゃ
-          # ここを修正じゃ！
-          TRUNCATED_TERMINAL_NAME=${SANITIZED_TERMINAL_NAME:0:20}
-          echo "TRUNCATED_TERMINAL_NAME=$TRUNCATED_TERMINAL_NAME" >> $GITHUB_ENV
-
+          ASSET_SUFFIX_INPUT="${{ github.event.inputs.asset_name_suffix }}"
+          if [ -n "$ASSET_SUFFIX_INPUT" ]; then
+            # asset_name_suffix が入力されていればそれを使う
+            FINAL_SUFFIX="$ASSET_SUFFIX_INPUT"
+          else
+            # 入力されていなければリリース名用にサニタイズした名前を使う
+            FINAL_SUFFIX="${{ env.SANITIZED_TERMINAL_NAME }}"
+          fi
+          # 環境変数に格納するのじゃ
+          echo "FINAL_ASSET_SUFFIX=$FINAL_SUFFIX" >> $GITHUB_ENV
+        shell: bash # bashを使うことで条件分岐が使えるのじゃ
 
       - name: リリースを作成
         id: create_release
@@ -75,8 +85,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: ${{ env.SANITIZED_TERMINAL_NAME }} # タグは必須なので残す
-          release_name: ${{ env.CURRENT_DATE }}-${{ env.SANITIZED_TERMINAL_NAME }} # リリース名
+          tag_name: ${{ env.SANITIZED_TERMINAL_NAME }} # タグは必須なので、サニタイズ名を使うのじゃ
+          release_name: ${{ env.CURRENT_DATE }}-${{ env.SANITIZED_TERMINAL_NAME }} # リリース名に日付、サニタイズ名を入れるのじゃ
           draft: true # ドラフト
           prerelease: false
 
@@ -88,7 +98,8 @@ jobs:
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
           asset_path: ./wgcf-profile.conf
-          asset_name: WARP-CloudFlare-${{ env.TRUNCATED_TERMINAL_NAME }}.conf # 切り詰めた端末名を使うのじゃ
+          # ★ 決定した最終的な接尾辞を使うのじゃ ★
+          asset_name: WARP-CloudFlare-${{ env.FINAL_ASSET_SUFFIX }}.conf
           asset_content_type: text/plain
 
       - name: AdGuard DNSプロファイルアセットをアップロード
@@ -99,7 +110,8 @@ jobs:
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
           asset_path: ./wgcf-profile-adguard.conf
-          asset_name: WARP-AdGuard-${{ env.TRUNCATED_TERMINAL_NAME }}.conf # こちらも切り詰めた端末名を使うのじゃ
+          # ★ 決定した最終的な接尾辞を使うのじゃ ★
+          asset_name: WARP-AdGuard-${{ env.FINAL_ASSET_SUFFIX }}.conf
           asset_content_type: text/plain
 
       - name: Google DNSプロファイルアセットをアップロード
@@ -110,7 +122,8 @@ jobs:
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
           asset_path: ./wgcf-profile-google.conf
-          asset_name: WARP-Google-${{ env.TRUNCATED_TERMINAL_NAME }}.conf # 切り詰めた端末名を使うのじゃ
+          # ★ 決定した最終的な接尾辞を使うのじゃ ★
+          asset_name: WARP-Google-${{ env.FINAL_ASSET_SUFFIX }}.conf
           asset_content_type: text/plain
 
       # Discord Webhook Secretが設定されているかチェックするステップを追加じゃ
@@ -133,7 +146,8 @@ jobs:
           content: | # 複数行で書くならパイプ記号(|)を使うのが便利じゃ
             🎉 WGCFプロファイルの生成とリリースが完了したのじゃ！🎉
 
-            **端末名:** ${{ github.event.inputs.terminal_name }}
+            **端末名 (リリース/タグ用):** ${{ github.event.inputs.terminal_name }}
+            **ファイル名接尾辞 (アセット用):** ${{ env.FINAL_ASSET_SUFFIX }} # 実際に使われた接尾辞を表示するのじゃ
             **Run番号:** #${{ github.run_number }}
 
             以下のプロファイルが生成され、リリースに添付されたのじゃ:
