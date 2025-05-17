@@ -1,4 +1,4 @@
-Name: WGCFプロファイルを生成
+name: WGCFプロファイルを生成
 
 on:
   workflow_dispatch:
@@ -44,7 +44,8 @@ jobs:
           # Cloudflare DNSをAdGuard DNSに置換するのじゃ
           sed -i 's/1.1.1.1/94.140.14.14/g' wgcf-profile-adguard.conf
           sed -i 's/1.0.0.1/94.140.15.15/g' wgcf-profile-adguard.conf
-          sed -i 's/2606:4700:4700::1111/2a10:50c0::ad1:ff/g' wgcf-profile-adguard.50c0::ad2:ff/g' wgcf-profile-adguard.conf
+          sed -i 's/2606:4700:4700::1111/2a10:50c0::ad1:ff/g' wgcf-profile-adguard.conf
+          sed -i 's/2606:4700:4700::1001/2a10:50c0::ad2:ff/g' wgcf-profile-adguard.conf
 
       - name: 今日の日付を取得する
         id: get_date
