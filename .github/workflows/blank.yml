@@ -70,7 +70,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tag_name: wgcf-profile-${{ env.CURRENT_DATE }}-${{ github.run_number }}-${{ env.SANITIZED_TERMINAL_NAME }} # タグは必須なので残すが、サニタイズ名を使うのじゃ
-          release_name: ${{ env.CURRENT_DATE }}-${{ env.SANITIZED_TERMINAL_NAME }} (Run #${{ github.run_number }}) # リリース名に日付、端末名、ラン番号を入れるのじゃ
+          release_name: ${{ env.CURRENT_DATE }}-${{ env.SANITIZED_TERMINAL_NAME }} # リリース名に日付、端末名、ラン番号を入れるのじゃ
           draft: true # ドラフト
           prerelease: false
 
