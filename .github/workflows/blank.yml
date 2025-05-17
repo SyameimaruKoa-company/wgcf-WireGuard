@@ -49,7 +49,7 @@ jobs:
 
       - name: 今日の日付を取得する
         id: get_date
-        run: echo "CURRENT_DATE=$(date +'%Y%m%d')" >> $GITHUB_ENV # YYYYMMDD形式で日付を取得し、環境変数に設定するのじゃ
+        run: echo "CURRENT_DATE=$(date +'%Y%m%d')" >> $GITHUB_ENV #MMDD形式で日付を取得し、環境変数に設定するのじゃ
 
       - name: タグの端末名をサニタイズする
         run: |
@@ -62,8 +62,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: wgcf-profile-${{ env.CURRENT_DATE }}-${{ github.run_number }}-${{ github.event.inputs.terminal_name }} # 日付、ラン番号、端末名を含めるのじゃ
-          release_name: WGCF Profile for ${{ github.event.inputs.terminal_name }} (Run #${{ github.run_number }}) # 端末名をリリース名に表示するのじゃ
+          tag_name: wgcf-profile-${{ env.CURRENT_DATE }}-${{ github.run_number }}-${{ env.SANITIZED_TERMINAL_NAME }} # タグは必須なので残すが、サニタイズ名を使うのじゃ
+          release_name: WGCF Profile ${{ env.CURRENT_DATE }}-${{ env.SANITIZED_TERMINAL_NAME }} # リリース名に日付、端末名、ラン番号を入れるのじゃ
           draft: false # ドラフトではなく、すぐに公開するのじゃ
           prerelease: false
 
@@ -116,4 +116,3 @@ jobs:
           # username: GitHub Actions # 例: 通知時のユーザー名を設定
           # avatar-url: https://avatars.githubusercontent.com/u/44036562?s=200&v=4 # 例: アバター画像を設定
           # Embedsなど、もっと凝ったメッセージにしたい場合は、ドキュメントを見て設定するのじゃぞ。
-
