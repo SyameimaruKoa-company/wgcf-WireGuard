@@ -55,16 +55,16 @@ jobs:
           # 'DNS = 'で始まる行を丸ごと、指定されたGoogle DNSアドレス全てに置き換えるのじゃ
           sed -i '/^DNS = /c\DNS = 8.8.8.8, 8.8.4.4, 2001:4860:4860::8888, 2001:4860:4860::8844, 2001:4860:4860::6464, 2001:4860:4860::64' wgcf-profile-google.conf
 
-      - name: 今日の日付を取得する
-        id: get_date
-        run: echo "CURRENT_DATE=$(date +'%Y%m%d')" >> $GITHUB_ENV #MMDD形式で日付を取得し、環境変数に設定するのじゃ
+      - name: 実行日時を取得する # ステップ名を変更じゃ
+        id: get_datetime # idも変更じゃ
+        run: echo "CURRENT_DATETIME=$(date +'%Y=%m/%d-%H:%M.%S')" >> $GITHUB_ENV # YYYYMMDD-HHMMSS形式で日時を取得し、環境変数に設定するのじゃ
 
       - name: タグとリリース名用に端末名をサニタイズする
         run: |
           SANITIZED_NAME=$(echo "${{ github.event.inputs.terminal_name }}" | sed 's/[[:space:]]/-/g')
           echo "SANITIZED_TERMINAL_NAME=$SANITIZED_NAME" >> $GITHUB_ENV
 
-      # ★ アセットファイル名用の接尾辞を決定するステップを追加じゃ ★
+      # ★ アセットファイル名用の接尾辞を決定するステップじゃ ★
       - name: Determine Asset Name Suffix
         run: |
           ASSET_SUFFIX_INPUT="${{ github.event.inputs.asset_name_suffix }}"
@@ -86,7 +86,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tag_name: ${{ env.SANITIZED_TERMINAL_NAME }} # タグは必須なので、サニタイズ名を使うのじゃ
-          release_name: ${{ env.CURRENT_DATE }}-${{ env.SANITIZED_TERMINAL_NAME }} # リリース名に日付、サニタイズ名を入れるのじゃ
+          release_name: ${{ env.CURRENT_DATETIME }}-${{ env.SANITIZED_TERMINAL_NAME }} # リリース名に実行日時とサニタイズ名を入れるのじゃ
           draft: true # ドラフト
           prerelease: false
 
@@ -148,6 +148,7 @@ jobs:
 
             **端末名 (リリース/タグ用):** ${{ github.event.inputs.terminal_name }}
             **ファイル名接尾辞 (アセット用):** ${{ env.FINAL_ASSET_SUFFIX }} # 実際に使われた接尾辞を表示するのじゃ
+            **実行日時:** ${{ env.CURRENT_DATETIME }} # 実行日時を追加じゃ
             **Run番号:** #${{ github.run_number }}
 
             以下のプロファイルが生成され、リリースに添付されたのじゃ:
