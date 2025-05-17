@@ -69,7 +69,6 @@ jobs:
           echo "TRUNCATED_TERMINAL_NAME=$TRUNCATED_TERMINAL_NAME" >> $GITHUB_ENV
 
 
-
       - name: リリースを作成
         id: create_release
         uses: actions/create-release@v1
