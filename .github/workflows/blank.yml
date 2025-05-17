@@ -64,8 +64,10 @@ jobs:
       - name: アセット名用に端末名を切り詰める
         run: |
           # サニタイズされた名前を最初の20文字に切り詰めるのじゃ
-          TRUNCATED_TERMINAL_NAME=${SANITIZED_TERMINED_NAME:0:20}
+          # ここを修正じゃ！
+          TRUNCATED_TERMINAL_NAME=${SANITIZED_TERMINAL_NAME:0:20}
           echo "TRUNCATED_TERMINAL_NAME=$TRUNCATED_TERMINAL_NAME" >> $GITHUB_ENV
+
 
 
       - name: リリースを作成
