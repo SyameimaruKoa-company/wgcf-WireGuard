@@ -4,9 +4,8 @@ on:
   workflow_dispatch:
     inputs:
       terminal_name:
-        description: "端末の名前を入力するのじゃ (例: MyPhone)"
+        description: "端末の名前を入力するのじゃ。ただファイル名になるだけじゃが。"
         required: true
-        default: "UnnamedDevice"
 
 jobs:
   build:
@@ -71,13 +70,9 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tag_name: wgcf-profile-${{ env.CURRENT_DATE }}-${{ github.run_number }}-${{ env.SANITIZED_TERMINAL_NAME }} # タグは必須なので残すが、サニタイズ名を使うのじゃ
-          release_name: WGCF Profile ${{ env.CURRENT_DATE }}-${{ env.SANITIZED_TERMINAL_NAME }} (Run #${{ github.run_number }}) # リリース名に日付、端末名、ラン番号を入れるのじゃ
+          release_name: ${{ env.CURRENT_DATE }}-${{ env.SANITIZED_TERMINAL_NAME }} (Run #${{ github.run_number }}) # リリース名に日付、端末名、ラン番号を入れるのじゃ
           draft: false # ドラフトではなく、すぐに公開するのじゃ
           prerelease: false
-
-      - name: 出力リリースURL
-        run: |
-          echo "Release URL: ${{ steps.create_release.outputs.html_url }}" # リリースURLをログに出力するのじゃ
 
       - name: Cloudflare DNSプロファイルアセットをアップロードする
         id: upload-cloudflare-asset
