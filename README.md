@@ -1,5 +1,7 @@
 # WGCF プロファイル生成リリースなのじゃ
 
+※万が一僕以外が使いたい場合はフォークして使ってください。(多分それで使えるはず)
+
 [![WGCF Create](https://github.com/SyameimaruKoa-company/wgcf-WireGuard/actions/workflows/blank.yml/badge.svg?event=workflow_run)](https://github.com/SyameimaruKoa-company/wgcf-WireGuard/actions/workflows/blank.yml)
 
 このリポジトリは、GitHub Actions ワークフローによって自動生成された [wgcf](https://github.com/ViRb3/wgcf) プロファイルを生成するリポジトリじゃ。
