@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       terminal_name:
-        description: "端末の名前を入力するのじゃ。ただファイル名になるだけじゃが。"
+        description: "識別用の名前を入力"
         required: true
 
 jobs:
