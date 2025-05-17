@@ -56,6 +56,14 @@ jobs:
           SANITIZED_NAME=$(echo "${{ github.event.inputs.terminal_name }}" | sed 's/[[:space:]]/-/g')
           echo "SANITIZED_TERMINAL_NAME=$SANITIZED_NAME" >> $GITHUB_ENV
 
+      # 追加：アセット名用に端末名を切り詰める
+      - name: アセット名用に端末名を切り詰める
+        run: |
+          # サニタイズされた名前を最初の20文字に切り詰めるのじゃ
+          TRUNCATED_TERMINAL_NAME=${SANITIZED_TERMINAL_NAME:0:20}
+          echo "TRUNCATED_TERMINAL_NAME=$TRUNCATED_TERMINAL_NAME" >> $GITHUB_ENV
+
+
       - name: リリースを作成
         id: create_release
         uses: actions/create-release@v1
@@ -63,7 +71,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tag_name: wgcf-profile-${{ env.CURRENT_DATE }}-${{ github.run_number }}-${{ env.SANITIZED_TERMINAL_NAME }} # タグは必須なので残すが、サニタイズ名を使うのじゃ
-          release_name: WGCF Profile ${{ env.CURRENT_DATE }}-${{ env.SANITIZED_TERMINAL_NAME }} # リリース名に日付、端末名、ラン番号を入れるのじゃ
+          release_name: WGCF Profile ${{ env.CURRENT_DATE }}-${{ env.SANITIZED_TERMINAL_NAME }} (Run #${{ github.run_number }}) # リリース名に日付、端末名、ラン番号を入れるのじゃ
           draft: false # ドラフトではなく、すぐに公開するのじゃ
           prerelease: false
 
@@ -79,7 +87,7 @@ jobs:
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
           asset_path: ./wgcf-profile.conf
-          asset_name: wgcf-profile-cloudflare-${{ github.event.inputs.terminal_name }}.conf # 端末名とDNSサービス名を含めるのじゃ
+          asset_name: WARP-CloudFlare-${{ env.TRUNCATED_TERMINAL_NAME }}.conf # 切り詰めた端末名を使うのじゃ
           asset_content_type: text/plain
 
       - name: AdGuard DNSプロファイルアセットをアップロード
@@ -90,7 +98,7 @@ jobs:
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
           asset_path: ./wgcf-profile-adguard.conf
-          asset_name: wgcf-profile-adguard-${{ github.event.inputs.terminal_name }}.conf # 端末名とDNSサービス名を含めるのじゃ
+          asset_name: WARP-AdGuard-${{ env.TRUNCATED_TERMINAL_NAME }}.conf # こちらも切り詰めた端末名を使うのじゃ
           asset_content_type: text/plain
 
       - name: Discordに通知を送る
