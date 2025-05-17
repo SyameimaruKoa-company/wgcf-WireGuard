@@ -46,6 +46,12 @@ jobs:
           sed -i 's/2606:4700:4700::1111/2a10:50c0::ad1:ff/g' wgcf-profile-adguard.conf
           sed -i 's/2606:4700:4700::1001/2a10:50c0::ad2:ff/g' wgcf-profile-adguard.conf
 
+      - name: Google DNSプロファイルを作成する (DNS64込み)
+        run: |
+          cp wgcf-profile.conf wgcf-profile-google.conf
+          # 'DNS = 'で始まる行を丸ごと、指定されたGoogle DNSアドレス全てに置き換えるのじゃ
+          sed -i '/^DNS = /c\DNS = 8.8.8.8, 8.8.4.4, 2001:4860:4860::8888, 2001:4860:4860::8844, 2001:4860:4860::6464, 2001:4860:4860::64' wgcf-profile-google.conf
+
       - name: 今日の日付を取得する
         id: get_date
         run: echo "CURRENT_DATE=$(date +'%Y%m%d')" >> $GITHUB_ENV #MMDD形式で日付を取得し、環境変数に設定するのじゃ
@@ -55,11 +61,10 @@ jobs:
           SANITIZED_NAME=$(echo "${{ github.event.inputs.terminal_name }}" | sed 's/[[:space:]]/-/g')
           echo "SANITIZED_TERMINAL_NAME=$SANITIZED_NAME" >> $GITHUB_ENV
 
-      # 追加：アセット名用に端末名を切り詰める
       - name: アセット名用に端末名を切り詰める
         run: |
           # サニタイズされた名前を最初の20文字に切り詰めるのじゃ
-          TRUNCATED_TERMINAL_NAME=${SANITIZED_TERMINAL_NAME:0:20}
+          TRUNCATED_TERMINAL_NAME=${SANITIZED_TERMINED_NAME:0:20}
           echo "TRUNCATED_TERMINAL_NAME=$TRUNCATED_TERMINAL_NAME" >> $GITHUB_ENV
 
 
@@ -69,8 +74,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: ${{ env.SANITIZED_TERMINAL_NAME }} # タグは必須なので残すが、サニタイズ名を使うのじゃ
-          release_name: ${{ env.CURRENT_DATE }}-${{ env.SANITIZED_TERMINAL_NAME }} # リリース名に日付、端末名、ラン番号を入れるのじゃ
+          tag_name: ${{ env.SANITIZED_TERMINAL_NAME }} # タグは必須なので残す
+          release_name: ${{ env.CURRENT_DATE }}-${{ env.SANITIZED_TERMINAL_NAME }} # リリース名
           draft: true # ドラフト
           prerelease: false
 
@@ -96,20 +101,44 @@ jobs:
           asset_name: WARP-AdGuard-${{ env.TRUNCATED_TERMINAL_NAME }}.conf # こちらも切り詰めた端末名を使うのじゃ
           asset_content_type: text/plain
 
-      - name: Discordに通知を送る
-        uses: tsickert/discord-webhook@v7.0.0 # これで間違いなかろう
+      - name: Google DNSプロファイルアセットをアップロード
+        id: upload-google-asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          # GitHub Marketplaceのドキュメント通り、必須入力は 'webhook-url' じゃ
-          # Secretsに登録したWebhook URL全体を指定するのじゃぞ！
-          # Secretsの名前は、おぬしが登録したものに合わせるのじゃ。
-          webhook-url: ${{ secrets.DISCORD_WEBHOOK_URL }} # ここにWebhook URL全体が入ったSecretを指定
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./wgcf-profile-google.conf
+          asset_name: WARP-Google-${{ env.TRUNCATED_TERMINAL_NAME }}.conf # 切り詰めた端末名を使うのじゃ
+          asset_content_type: text/plain
 
-          # メッセージ本文は 'content' という入力名じゃ
+      # Discord Webhook Secretが設定されているかチェックするステップを追加じゃ
+      - name: Check if Discord Webhook Secret is Set
+        id: check_secret
+        run: |
+          if [ -n "${{ secrets.DISCORD_WEBHOOK_URL }}" ]; then
+            echo "DISCORD_SECRET_SET=true" >> $GITHUB_ENV
+          else
+            echo "DISCORD_SECRET_SET=false" >> $GITHUB_ENV
+          fi
+        shell: bash
+
+      - name: Discordに通知を送る
+        # ここに条件を追加するのじゃ！ Secretが設定されている場合のみ実行じゃ
+        if: env.DISCORD_SECRET_SET == 'true'
+        uses: tsickert/discord-webhook@v7.0.0
+        with:
+          webhook-url: ${{ secrets.DISCORD_WEBHOOK_URL }} # ここにWebhook URL全体が入ったSecretを指定
           content: | # 複数行で書くならパイプ記号(|)を使うのが便利じゃ
             🎉 WGCFプロファイルの生成とリリースが完了したのじゃ！🎉
 
             **端末名:** ${{ github.event.inputs.terminal_name }}
             **Run番号:** #${{ github.run_number }}
+
+            以下のプロファイルが生成され、リリースに添付されたのじゃ:
+            - Cloudflare DNS
+            - AdGuard DNS
+            - Google DNS (DNS64込み)
 
             **リリースURL:** ${{ steps.create_release.outputs.html_url }}
 
