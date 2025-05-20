@@ -147,8 +147,8 @@ jobs:
             🎉 WGCFプロファイルの生成とリリースが完了したのじゃ！🎉
 
             **端末名 (リリース/タグ用):** ${{ github.event.inputs.terminal_name }}
-            **ファイル名接尾辞 (アセット用):** ${{ env.FINAL_ASSET_SUFFIX }} # 実際に使われた接尾辞を表示するのじゃ
-            **実行日時:** ${{ env.CURRENT_DATETIME }} # 実行日時を追加じゃ
+            **ファイル名接尾辞 (アセット用):** ${{ env.FINAL_ASSET_SUFFIX }}
+            **実行日時:** ${{ env.CURRENT_DATETIME }}
             **Run番号:** #${{ github.run_number }}
 
             以下のプロファイルが生成され、リリースに添付されたのじゃ:
@@ -157,8 +157,6 @@ jobs:
             - Google DNS (DNS64込み)
 
             **リリースURL:** ${{ steps.create_release.outputs.html_url }}
-
-            おぬし、確認しておくのじゃぞ。
 
           # その他、ドキュメントに載っているオプションの入力じゃ（必要なら使うと良い）
           # username: GitHub Actions # 例: 通知時のユーザー名を設定
