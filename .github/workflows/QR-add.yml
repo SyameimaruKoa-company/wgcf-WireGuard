@@ -1,0 +1,120 @@
+# 編集用ワークフロー (edit-draft-release-with-qr-auto-detect.yml)
+name: Edit Draft Release to Add QR Codes (Auto Detect)
+
+on:
+  workflow_dispatch: # 手動実行のトリガーは残しておくぞ
+
+jobs:
+  add-qr-codes:
+    runs-on: ubuntu-latest
+    # リリースの読み取り、アセットのアップロード、リリースの更新のために権限が必要じゃ
+    permissions:
+      contents: write
+
+    steps:
+      # --- 準備のステップ ---
+      - name: qrencode をインストールする
+        run: sudo apt-get update && sudo apt-get install -y qrencode
+
+      # --- リリース情報の取得とアセットのダウンロード ---
+      - name: PNGアセットを含まないドラフトリリースを検索する
+        id: find_release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          echo "PNGアセットを含まないドラフトリリースを探すのじゃ..."
+          # gh release listでドラフトを検索し、jqでアセットに.pngがないものを絞り込む
+          # 複数見つかった場合は、一番新しいものを対象とする（gh release listは新しい順で返すからの）
+          target_release_info=$(gh release list --limit 100 --json tagName,isDraft,id,body,assets | \
+                                jq '.[] | select(.isDraft == true) | select([.assets[].name | endswith(".png")] | length == 0)' | \
+                                head -n 1)
+
+          if [ -z "$target_release_info" ]; then
+            echo "エラー: PNGアセットを含まないドラフトリリースが見つからんかったぞ。"
+            exit 1
+          fi
+          
+          # 後続のステップで使うために、リリースID、タグ、本文をoutputsに設定する
+          release_id=$(echo "$target_release_info" | jq '.id')
+          release_tag=$(echo "$target_release_info" | jq -r '.tagName')
+          release_body=$(echo "$target_release_info" | jq -r '.body')
+
+          echo "対象リリースを発見したぞ！ -> タグ: ${release_tag}, ID: ${release_id}"
+          
+          echo "release_id=${release_id}" >> $GITHUB_OUTPUT
+          echo "release_tag=${release_tag}" >> $GITHUB_OUTPUT
+          echo "${release_body}" > existing_body.txt
+
+      - name: .conf アセットを現在のディレクトリにダウンロードする
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # --pattern を使って、名前に ".conf" を含むアセットのみをダウンロードする
+          # 発見したリリースのタグを使うのじゃ
+          gh release download ${{ steps.find_release.outputs.release_tag }} --pattern "*.conf"
+
+      # --- QRコードの生成とアップロード ---
+      - name: QRコード画像を生成する
+        run: |
+          # ダウンロードした .conf ファイルを一つずつ処理するループじゃ
+          for conf_file in *.conf; do
+            # 出力ファイル名を「QR_」から始めるようにする
+            output_file="QR_${conf_file%.conf}.png"
+            echo "${conf_file} から ${output_file} を生成するのじゃ..."
+            qrencode -t png -o "$output_file" < "$conf_file"
+          done
+
+      - name: 生成したQRコードをリリースにアップロードする
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # 「QR_」で始まるPNGファイルをすべてアップロードする
+          # これも発見したリリースのタグを使うのじゃ
+          gh release upload ${{ steps.find_release.outputs.release_tag }} ./QR_*.png
+
+      # --- リリース本文の更新 ---
+      - name: リリース本文をQRコード付きで更新する
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          # 前のステップで取得したリリースIDを渡す
+          release-id: ${{ steps.find_release.outputs.release_id }}
+          script: |
+            const fs = require('fs');
+            const releaseId = process.env.RELEASE_ID;
+            const { owner, repo } = context.repo;
+
+            // まず、更新後のリリース情報を再度取得して、アップロードされたアセットのURLを得る
+            const { data: release } = await github.rest.repos.getRelease({ owner, repo, release_id: releaseId });
+
+            // QRコード画像のアセットのみをフィルタリングする
+            const qrAssets = release.assets.filter(asset => asset.name.startsWith('QR_') && asset.name.endsWith('.png'));
+
+            // 本文に追加するMarkdown文字列を組み立てる
+            let qrBodyContent = '\n\n--- \n\n### プロファイルQRコード\nプロファイルごとのQRコードじゃぞ。クリックして展開するのじゃ。\n';
+            for (const asset of qrAssets) {
+              const confName = asset.name.replace('QR_', '').replace('.png', '.conf');
+              qrBodyContent += `
+              <details>
+              <summary>${confName} QRコード</summary>
+              <br>
+              <img src="${asset.browser_download_url}" alt="${confName} QR Code">
+              </details>
+              `;
+            }
+            
+            // 元の本文をファイルから読み込む
+            const existingBody = fs.readFileSync('existing_body.txt', 'utf8');
+
+            // 元の本文にQRコードのセクションを追記する
+            const newBody = existingBody + qrBodyContent;
+
+            // 組み立てた新しい本文でリリースを更新する
+            await github.rest.repos.updateRelease({
+              owner,
+              repo,
+              release_id: releaseId,
+              body: newBody
+            });
+
+            console.log('リリースの本文をQRコード付きで更新したぞ！');
