@@ -83,9 +83,9 @@ jobs:
 
       - name: QRコード画像をファイルとして生成する
         run: |
-          qrencode -t png -o WARP-CloudFlare-${{ env.FINAL_ASSET_SUFFIX }}.png < wgcf-profile.conf
-          qrencode -t png -o WARP-AdGuard-${{ env.FINAL_ASSET_SUFFIX }}.png < wgcf-profile-adguard.conf
-          qrencode -t png -o WARP-Google-${{ env.FINAL_ASSET_SUFFIX }}.png < wgcf-profile-google.conf
+          qrencode -t png -o QR_WARP-CloudFlare-${{ env.FINAL_ASSET_SUFFIX }}.png < wgcf-profile.conf
+          qrencode -t png -o QR_WARP-AdGuard-${{ env.FINAL_ASSET_SUFFIX }}.png < wgcf-profile-adguard.conf
+          qrencode -t png -o QR_WARP-Google-${{ env.FINAL_ASSET_SUFFIX }}.png < wgcf-profile-google.conf
         shell: bash
 
       - name: リリースをまず作成する（本文は後で更新）
@@ -138,8 +138,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./WARP-CloudFlare-${{ env.FINAL_ASSET_SUFFIX }}.png
-          asset_name: WARP-CloudFlare-${{ env.FINAL_ASSET_SUFFIX }}.png
+          asset_path: ./QR_WARP-CloudFlare-${{ env.FINAL_ASSET_SUFFIX }}.png
+          asset_name: QR_WARP-CloudFlare-${{ env.FINAL_ASSET_SUFFIX }}.png
           asset_content_type: image/png
 
       - name: AdGuard QRコード画像をアップロードする
@@ -149,8 +149,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./WARP-AdGuard-${{ env.FINAL_ASSET_SUFFIX }}.png
-          asset_name: WARP-AdGuard-${{ env.FINAL_ASSET_SUFFIX }}.png
+          asset_path: ./QR_WARP-AdGuard-${{ env.FINAL_ASSET_SUFFIX }}.png
+          asset_name: QR_WARP-AdGuard-${{ env.FINAL_ASSET_SUFFIX }}.png
           asset_content_type: image/png
 
       - name: Google QRコード画像をアップロードする
@@ -160,8 +160,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./WARP-Google-${{ env.FINAL_ASSET_SUFFIX }}.png
-          asset_name: WARP-Google-${{ env.FINAL_ASSET_SUFFIX }}.png
+          asset_path: ./QR_WARP-Google-${{ env.FINAL_ASSET_SUFFIX }}.png
+          asset_name: QR_WARP-Google-${{ env.FINAL_ASSET_SUFFIX }}.png
           asset_content_type: image/png
 
       - name: リリース本文をQRコード付きで更新する
