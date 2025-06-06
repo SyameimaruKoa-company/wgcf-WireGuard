@@ -75,8 +75,6 @@ jobs:
           echo "FINAL_ASSET_SUFFIX=$FINAL_SUFFIX" >> $GITHUB_ENV
         shell: bash
 
-      # --- ここからが変更点じゃ ---
-
       - name: qrencode をインストールする
         run: sudo apt-get update && sudo apt-get install -y qrencode
 
@@ -91,7 +89,7 @@ jobs:
           <details>
           <summary>WARP-CloudFlare-${{ env.FINAL_ASSET_SUFFIX }}.conf QRコード</summary>
           <br>
-          ![QR Code](data:image/png;base64,${CF_QR_BASE64})
+          <img src=\"data:image/png;base64,${CF_QR_BASE64}\" alt=\"Cloudflare QR Code\">
           </details>
           "
 
@@ -101,7 +99,7 @@ jobs:
           <details>
           <summary>WARP-AdGuard-${{ env.FINAL_ASSET_SUFFIX }}.conf QRコード</summary>
           <br>
-          ![QR Code](data:image/png;base64,${AG_QR_BASE64})
+          <img src=\"data:image/png;base64,${AG_QR_BASE64}\" alt=\"AdGuard QR Code\">
           </details>
           "
 
@@ -111,7 +109,7 @@ jobs:
           <details>
           <summary>WARP-Google-${{ env.FINAL_ASSET_SUFFIX }}.conf QRコード</summary>
           <br>
-          ![QR Code](data:image/png;base64,${GO_QR_BASE64})
+          <img src=\"data:image/png;base64,${GO_QR_BASE64}\" alt=\"Google QR Code\">
           </details>
           "
 
@@ -132,8 +130,6 @@ jobs:
           body: ${{ env.RELEASE_BODY }} # ここで本文にQRコードを埋め込むのじゃ
           draft: true
           prerelease: false
-
-      # --- ここまでが変更点じゃ ---
 
       - name: Cloudflare DNSプロファイルアセットをアップロードする
         id: upload-cloudflare-asset
