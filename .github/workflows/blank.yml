@@ -1,4 +1,4 @@
-name: WGCF Create
+name: WGCF Create with QR Code
 
 on:
   workflow_dispatch:
@@ -55,29 +55,71 @@ jobs:
           # 'DNS = 'で始まる行を丸ごと、指定されたGoogle DNSアドレス全てに置き換えるのじゃ
           sed -i '/^DNS = /c\DNS = 8.8.8.8, 8.8.4.4, 2001:4860:4860::8888, 2001:4860:4860::8844, 2001:4860:4860::6464, 2001:4860:4860::64' wgcf-profile-google.conf
 
-      - name: 実行日時を取得する # ステップ名を変更じゃ
-        id: get_datetime # idも変更じゃ
-        run: echo "CURRENT_DATETIME=$(date +'%Y=%m/%d-%H:%M.%S')" >> $GITHUB_ENV # YYYYMMDD-HHMMSS形式で日時を取得し、環境変数に設定するのじゃ
+      - name: 実行日時を取得する
+        id: get_datetime
+        run: echo "CURRENT_DATETIME=$(date +'%Y-%m-%d-%H%M%S')" >> $GITHUB_ENV
 
       - name: タグとリリース名用に端末名をサニタイズする
         run: |
           SANITIZED_NAME=$(echo "${{ github.event.inputs.terminal_name }}" | sed 's/[[:space:]]/-/g')
           echo "SANITIZED_TERMINAL_NAME=$SANITIZED_NAME" >> $GITHUB_ENV
 
-      # ★ アセットファイル名用の接尾辞を決定するステップじゃ ★
-      - name: Determine Asset Name Suffix
+      - name: アセットファイル名用の接尾辞を決定する
         run: |
           ASSET_SUFFIX_INPUT="${{ github.event.inputs.asset_name_suffix }}"
           if [ -n "$ASSET_SUFFIX_INPUT" ]; then
-            # asset_name_suffix が入力されていればそれを使う
             FINAL_SUFFIX="$ASSET_SUFFIX_INPUT"
           else
-            # 入力されていなければリリース名用にサニタイズした名前を使う
             FINAL_SUFFIX="${{ env.SANITIZED_TERMINAL_NAME }}"
           fi
-          # 環境変数に格納するのじゃ
           echo "FINAL_ASSET_SUFFIX=$FINAL_SUFFIX" >> $GITHUB_ENV
-        shell: bash # bashを使うことで条件分岐が使えるのじゃ
+        shell: bash
+
+      # --- ここからが変更点じゃ ---
+
+      - name: qrencode をインストールする
+        run: sudo apt-get update && sudo apt-get install -y qrencode
+
+      - name: QRコードを生成し、リリース本文を作成する
+        id: prepare_release_body
+        run: |
+          BODY_CONTENT="プロファイルごとのQRコードじゃぞ。クリックして展開するのじゃ。"
+
+          # CloudflareプロファイルのQRコード
+          CF_QR_BASE64=$(qrencode -t png -o - < wgcf-profile.conf | base64 -w 0)
+          BODY_CONTENT="${BODY_CONTENT}
+          <details>
+          <summary>WARP-CloudFlare-${{ env.FINAL_ASSET_SUFFIX }}.conf QRコード</summary>
+          <br>
+          ![QR Code](data:image/png;base64,${CF_QR_BASE64})
+          </details>
+          "
+
+          # AdGuardプロファイルのQRコード
+          AG_QR_BASE64=$(qrencode -t png -o - < wgcf-profile-adguard.conf | base64 -w 0)
+          BODY_CONTENT="${BODY_CONTENT}
+          <details>
+          <summary>WARP-AdGuard-${{ env.FINAL_ASSET_SUFFIX }}.conf QRコード</summary>
+          <br>
+          ![QR Code](data:image/png;base64,${AG_QR_BASE64})
+          </details>
+          "
+
+          # GoogleプロファイルのQRコード
+          GO_QR_BASE64=$(qrencode -t png -o - < wgcf-profile-google.conf | base64 -w 0)
+          BODY_CONTENT="${BODY_CONTENT}
+          <details>
+          <summary>WARP-Google-${{ env.FINAL_ASSET_SUFFIX }}.conf QRコード</summary>
+          <br>
+          ![QR Code](data:image/png;base64,${GO_QR_BASE64})
+          </details>
+          "
+
+          # GITHUB_ENVに複数行の文字列を渡すためのテクニックじゃ
+          echo 'RELEASE_BODY<<EOF' >> $GITHUB_ENV
+          echo "${BODY_CONTENT}" >> $GITHUB_ENV
+          echo 'EOF' >> $GITHUB_ENV
+        shell: bash
 
       - name: リリースを作成
         id: create_release
@@ -85,10 +127,13 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: ${{ env.SANITIZED_TERMINAL_NAME }} # タグは必須なので、サニタイズ名を使うのじゃ
-          release_name: ${{ env.CURRENT_DATETIME }}-${{ env.SANITIZED_TERMINAL_NAME }} # リリース名に実行日時とサニタイズ名を入れるのじゃ
-          draft: true # ドラフト
+          tag_name: ${{ env.SANITIZED_TERMINAL_NAME }}-${{ env.CURRENT_DATETIME }}
+          release_name: ${{ env.CURRENT_DATETIME }}-${{ env.SANITIZED_TERMINAL_NAME }}
+          body: ${{ env.RELEASE_BODY }} # ここで本文にQRコードを埋め込むのじゃ
+          draft: true
           prerelease: false
+
+      # --- ここまでが変更点じゃ ---
 
       - name: Cloudflare DNSプロファイルアセットをアップロードする
         id: upload-cloudflare-asset
@@ -98,7 +143,6 @@ jobs:
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
           asset_path: ./wgcf-profile.conf
-          # ★ 決定した最終的な接尾辞を使うのじゃ ★
           asset_name: WARP-CloudFlare-${{ env.FINAL_ASSET_SUFFIX }}.conf
           asset_content_type: text/plain
 
@@ -110,7 +154,6 @@ jobs:
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
           asset_path: ./wgcf-profile-adguard.conf
-          # ★ 決定した最終的な接尾辞を使うのじゃ ★
           asset_name: WARP-AdGuard-${{ env.FINAL_ASSET_SUFFIX }}.conf
           asset_content_type: text/plain
 
@@ -122,11 +165,9 @@ jobs:
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
           asset_path: ./wgcf-profile-google.conf
-          # ★ 決定した最終的な接尾辞を使うのじゃ ★
           asset_name: WARP-Google-${{ env.FINAL_ASSET_SUFFIX }}.conf
           asset_content_type: text/plain
 
-      # Discord Webhook Secretが設定されているかチェックするステップを追加じゃ
       - name: Check if Discord Webhook Secret is Set
         id: check_secret
         run: |
@@ -138,12 +179,11 @@ jobs:
         shell: bash
 
       - name: Discordに通知を送る
-        # ここに条件を追加するのじゃ！ Secretが設定されている場合のみ実行じゃ
         if: env.DISCORD_SECRET_SET == 'true'
         uses: tsickert/discord-webhook@v7.0.0
         with:
-          webhook-url: ${{ secrets.DISCORD_WEBHOOK_URL }} # ここにWebhook URL全体が入ったSecretを指定
-          content: | # 複数行で書くならパイプ記号(|)を使うのが便利じゃ
+          webhook-url: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          content: |
             🎉 WGCFプロファイルの生成とリリースが完了したのじゃ！🎉
 
             **端末名 (リリース/タグ用):** ${{ github.event.inputs.terminal_name }}
@@ -151,14 +191,9 @@ jobs:
             **実行日時:** ${{ env.CURRENT_DATETIME }}
             **Run番号:** #${{ github.run_number }}
 
-            以下のプロファイルが生成され、リリースに添付されたのじゃ:
+            以下のプロファイルが生成され、リリースに添付されたのじゃ (QRコード付き！):
             - Cloudflare DNS
             - AdGuard DNS
             - Google DNS (DNS64込み)
 
             **リリースURL:** ${{ steps.create_release.outputs.html_url }}
-
-          # その他、ドキュメントに載っているオプションの入力じゃ（必要なら使うと良い）
-          # username: GitHub Actions # 例: 通知時のユーザー名を設定
-          # avatar-url: https://avatars.githubusercontent.com/u/44036562?s=200&v=4 # 例: アバター画像を設定
-          # Embedsなど、もっと凝ったメッセージにしたい場合は、ドキュメントを見て設定するのじゃぞ。
