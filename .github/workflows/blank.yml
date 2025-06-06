@@ -14,7 +14,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     permissions:
-      contents: write # リリースを作成し、ファイルをアップロードするために必要じゃ
+      contents: write # リリースを作成・更新し、ファイルをアップロードするために必要じゃ
 
     steps:
       - name: チェックアウトリポジトリ
@@ -43,7 +43,6 @@ jobs:
       - name: AdGuard DNSプロファイルを作成する
         run: |
           cp wgcf-profile.conf wgcf-profile-adguard.conf
-          # Cloudflare DNSをAdGuard DNSに置換するのじゃ
           sed -i 's/1.1.1.1/94.140.14.14/g' wgcf-profile-adguard.conf
           sed -i 's/1.0.0.1/94.140.15.15/g' wgcf-profile-adguard.conf
           sed -i 's/2606:4700:4700::1111/2a10:50c0::ad1:ff/g' wgcf-profile-adguard.conf
@@ -52,7 +51,6 @@ jobs:
       - name: Google DNSプロファイルを作成する (DNS64込み)
         run: |
           cp wgcf-profile.conf wgcf-profile-google.conf
-          # 'DNS = 'で始まる行を丸ごと、指定されたGoogle DNSアドレス全てに置き換えるのじゃ
           sed -i '/^DNS = /c\DNS = 8.8.8.8, 8.8.4.4, 2001:4860:4860::8888, 2001:4860:4860::8844, 2001:4860:4860::6464, 2001:4860:4860::64' wgcf-profile-google.conf
 
       - name: 実行日時を取得する
@@ -74,65 +72,36 @@ jobs:
           fi
           echo "FINAL_ASSET_SUFFIX=$FINAL_SUFFIX" >> $GITHUB_ENV
         shell: bash
+      
+      # --- ここからが変更点じゃ ---
+
+      - name: タグ名を生成する
+        id: generate_tag
+        run: echo "TAG_NAME=${{ env.SANITIZED_TERMINAL_NAME }}-${{ env.CURRENT_DATETIME }}" >> $GITHUB_ENV
 
       - name: qrencode をインストールする
         run: sudo apt-get update && sudo apt-get install -y qrencode
 
-      - name: QRコードを生成し、リリース本文を作成する
-        id: prepare_release_body
+      - name: QRコード画像をファイルとして生成する
         run: |
-          BODY_CONTENT="プロファイルごとのQRコードじゃぞ。クリックして展開するのじゃ。"
-
-          # CloudflareプロファイルのQRコード
-          CF_QR_BASE64=$(qrencode -t png -o - < wgcf-profile.conf | base64 -w 0)
-          BODY_CONTENT="${BODY_CONTENT}
-          <details>
-          <summary>WARP-CloudFlare-${{ env.FINAL_ASSET_SUFFIX }}.conf QRコード</summary>
-          <br>
-          <img src=\"data:image/png;base64,${CF_QR_BASE64}\" alt=\"Cloudflare QR Code\">
-          </details>
-          "
-
-          # AdGuardプロファイルのQRコード
-          AG_QR_BASE64=$(qrencode -t png -o - < wgcf-profile-adguard.conf | base64 -w 0)
-          BODY_CONTENT="${BODY_CONTENT}
-          <details>
-          <summary>WARP-AdGuard-${{ env.FINAL_ASSET_SUFFIX }}.conf QRコード</summary>
-          <br>
-          <img src=\"data:image/png;base64,${AG_QR_BASE64}\" alt=\"AdGuard QR Code\">
-          </details>
-          "
-
-          # GoogleプロファイルのQRコード
-          GO_QR_BASE64=$(qrencode -t png -o - < wgcf-profile-google.conf | base64 -w 0)
-          BODY_CONTENT="${BODY_CONTENT}
-          <details>
-          <summary>WARP-Google-${{ env.FINAL_ASSET_SUFFIX }}.conf QRコード</summary>
-          <br>
-          <img src=\"data:image/png;base64,${GO_QR_BASE64}\" alt=\"Google QR Code\">
-          </details>
-          "
-
-          # GITHUB_ENVに複数行の文字列を渡すためのテクニックじゃ
-          echo 'RELEASE_BODY<<EOF' >> $GITHUB_ENV
-          echo "${BODY_CONTENT}" >> $GITHUB_ENV
-          echo 'EOF' >> $GITHUB_ENV
+          qrencode -t png -o WARP-CloudFlare-${{ env.FINAL_ASSET_SUFFIX }}.png < wgcf-profile.conf
+          qrencode -t png -o WARP-AdGuard-${{ env.FINAL_ASSET_SUFFIX }}.png < wgcf-profile-adguard.conf
+          qrencode -t png -o WARP-Google-${{ env.FINAL_ASSET_SUFFIX }}.png < wgcf-profile-google.conf
         shell: bash
 
-      - name: リリースを作成
+      - name: リリースをまず作成する（本文は後で更新）
         id: create_release
         uses: actions/create-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: ${{ env.SANITIZED_TERMINAL_NAME }}-${{ env.CURRENT_DATETIME }}
+          tag_name: ${{ env.TAG_NAME }}
           release_name: ${{ env.CURRENT_DATETIME }}-${{ env.SANITIZED_TERMINAL_NAME }}
-          body: ${{ env.RELEASE_BODY }} # ここで本文にQRコードを埋め込むのじゃ
+          body: "プロファイルとQRコードをアップロード中..." # 仮の本文じゃ
           draft: true
           prerelease: false
 
       - name: Cloudflare DNSプロファイルアセットをアップロードする
-        id: upload-cloudflare-asset
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -143,7 +112,6 @@ jobs:
           asset_content_type: text/plain
 
       - name: AdGuard DNSプロファイルアセットをアップロード
-        id: upload-adguard-asset
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -154,7 +122,6 @@ jobs:
           asset_content_type: text/plain
 
       - name: Google DNSプロファイルアセットをアップロード
-        id: upload-google-asset
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -163,6 +130,81 @@ jobs:
           asset_path: ./wgcf-profile-google.conf
           asset_name: WARP-Google-${{ env.FINAL_ASSET_SUFFIX }}.conf
           asset_content_type: text/plain
+
+      - name: Cloudflare QRコード画像をアップロードする
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./WARP-CloudFlare-${{ env.FINAL_ASSET_SUFFIX }}.png
+          asset_name: WARP-CloudFlare-${{ env.FINAL_ASSET_SUFFIX }}.png
+          asset_content_type: image/png
+
+      - name: AdGuard QRコード画像をアップロードする
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./WARP-AdGuard-${{ env.FINAL_ASSET_SUFFIX }}.png
+          asset_name: WARP-AdGuard-${{ env.FINAL_ASSET_SUFFIX }}.png
+          asset_content_type: image/png
+
+      - name: Google QRコード画像をアップロードする
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./WARP-Google-${{ env.FINAL_ASSET_SUFFIX }}.png
+          asset_name: WARP-Google-${{ env.FINAL_ASSET_SUFFIX }}.png
+          asset_content_type: image/png
+
+      - name: リリース本文をQRコード付きで更新する
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const { owner, repo } = context.repo;
+            const release_id = ${{ steps.create_release.outputs.id }};
+            const tag_name = "${{ env.TAG_NAME }}";
+            const cf_asset_name = "WARP-CloudFlare-${{ env.FINAL_ASSET_SUFFIX }}";
+            const ag_asset_name = "WARP-AdGuard-${{ env.FINAL_ASSET_SUFFIX }}";
+            const go_asset_name = "WARP-Google-${{ env.FINAL_ASSET_SUFFIX }}";
+
+            // アセットのURLを生成する関数じゃ
+            function getAssetUrl(assetName) {
+              return `https://github.com/${owner}/${repo}/releases/download/${tag_name}/${assetName}`;
+            }
+
+            const body = `プロファイルごとのQRコードじゃぞ。クリックして展開するのじゃ。
+
+            <details>
+            <summary>${cf_asset_name}.conf QRコード</summary>
+            <br>
+            <img src="${getAssetUrl(cf_asset_name + '.png')}" alt="${cf_asset_name} QR Code">
+            </details>
+
+            <details>
+            <summary>${ag_asset_name}.conf QRコード</summary>
+            <br>
+            <img src="${getAssetUrl(ag_asset_name + '.png')}" alt="${ag_asset_name} QR Code">
+            </details>
+
+            <details>
+            <summary>${go_asset_name}.conf QRコード</summary>
+            <br>
+            <img src="${getAssetUrl(go_asset_name + '.png')}" alt="${go_asset_name} QR Code">
+            </details>
+            `;
+
+            await github.rest.repos.updateRelease({
+              owner,
+              repo,
+              release_id,
+              body
+            });
 
       - name: Check if Discord Webhook Secret is Set
         id: check_secret
