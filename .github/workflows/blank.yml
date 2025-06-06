@@ -72,8 +72,6 @@ jobs:
           fi
           echo "FINAL_ASSET_SUFFIX=$FINAL_SUFFIX" >> $GITHUB_ENV
         shell: bash
-      
-      # --- ここからが変更点じゃ ---
 
       - name: タグ名を生成する
         id: generate_tag
@@ -95,7 +93,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: ${{ env.TAG_NAME }}
+          tag_name: ${{ steps.generate_tag.outputs.TAG_NAME }}
           release_name: ${{ env.CURRENT_DATETIME }}-${{ env.SANITIZED_TERMINAL_NAME }}
           body: "プロファイルとQRコードをアップロード中..." # 仮の本文じゃ
           draft: true
@@ -131,7 +129,9 @@ jobs:
           asset_name: WARP-Google-${{ env.FINAL_ASSET_SUFFIX }}.conf
           asset_content_type: text/plain
 
+      # --- ここからが変更点じゃ ---
       - name: Cloudflare QRコード画像をアップロードする
+        id: upload_qr_cf # IDを追加じゃ
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -142,6 +142,7 @@ jobs:
           asset_content_type: image/png
 
       - name: AdGuard QRコード画像をアップロードする
+        id: upload_qr_ag # IDを追加じゃ
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -152,6 +153,7 @@ jobs:
           asset_content_type: image/png
 
       - name: Google QRコード画像をアップロードする
+        id: upload_qr_go # IDを追加じゃ
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -168,34 +170,33 @@ jobs:
           script: |
             const { owner, repo } = context.repo;
             const release_id = ${{ steps.create_release.outputs.id }};
-            const tag_name = "${{ env.TAG_NAME }}";
             const cf_asset_name = "WARP-CloudFlare-${{ env.FINAL_ASSET_SUFFIX }}";
             const ag_asset_name = "WARP-AdGuard-${{ env.FINAL_ASSET_SUFFIX }}";
             const go_asset_name = "WARP-Google-${{ env.FINAL_ASSET_SUFFIX }}";
 
-            // アセットのURLを生成する関数じゃ
-            function getAssetUrl(assetName) {
-              return `https://github.com/${owner}/${repo}/releases/download/${tag_name}/${assetName}`;
-            }
+            // ★アセットのURLを直接取得するのじゃ！★
+            const cf_qr_url = "${{ steps.upload_qr_cf.outputs.browser_download_url }}";
+            const ag_qr_url = "${{ steps.upload_qr_ag.outputs.browser_download_url }}";
+            const go_qr_url = "${{ steps.upload_qr_go.outputs.browser_download_url }}";
 
             const body = `プロファイルごとのQRコードじゃぞ。クリックして展開するのじゃ。
 
             <details>
             <summary>${cf_asset_name}.conf QRコード</summary>
             <br>
-            <img src="${getAssetUrl(cf_asset_name + '.png')}" alt="${cf_asset_name} QR Code">
+            <img src="${cf_qr_url}" alt="${cf_asset_name} QR Code">
             </details>
 
             <details>
             <summary>${ag_asset_name}.conf QRコード</summary>
             <br>
-            <img src="${getAssetUrl(ag_asset_name + '.png')}" alt="${ag_asset_name} QR Code">
+            <img src="${ag_qr_url}" alt="${ag_asset_name} QR Code">
             </details>
 
             <details>
             <summary>${go_asset_name}.conf QRコード</summary>
             <br>
-            <img src="${getAssetUrl(go_asset_name + '.png')}" alt="${go_asset_name} QR Code">
+            <img src="${go_qr_url}" alt="${go_asset_name} QR Code">
             </details>
             `;
 
@@ -205,6 +206,7 @@ jobs:
               release_id,
               body
             });
+      # --- ここまでが変更点じゃ ---
 
       - name: Check if Discord Webhook Secret is Set
         id: check_secret
